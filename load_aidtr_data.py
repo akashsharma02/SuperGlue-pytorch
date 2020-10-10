@@ -15,8 +15,9 @@ class SparseDataset(Dataset):
     def __init__(self, train_path, nfeatures, folder = 'train'):
 
         self.files = []
-        self.folder = folder + '_data_rs'
-        self.files += [train_path + f for f in os.listdir(os.path.join(train_path, self.folder))]
+        self.folder = folder + '_data_rs/'
+        self.train_path = os.path.join(train_path, self.folder)
+        self.files += [self.train_path +  f for f in os.listdir(self.train_path)]
 
         self.matcher = cv2.BFMatcher_create(cv2.NORM_L1, crossCheck=False)
 
@@ -28,20 +29,20 @@ class SparseDataset(Dataset):
         data = np.load(self.files[idx], allow_pickle=True)
         file_name = self.files[idx]
 
-        kp1 = data[0]
-        kp2 = data[1]
-        desc1 = data[2]
-        desc2 = data[3]
-        image1 = data[4]
-        image2 = data[5]
+        kp1 = data[0].squeeze()
+        kp2 = data[1].squeeze()
+        desc1 = data[2].squeeze()
+        desc2 = data[3].squeeze()
+        image1 = data[4].astype(np.float64)
+        image2 = data[5].astype(np.float64)
         M = data[6]
 
         width, height = image1.shape[0], image1.shape[1]
 
         kp1_np = np.array([(kp[0], kp[1]) for kp in kp1]) # maybe coordinates pt has 3 dimentions; kp1_np.shape=(50,)
         kp2_np = np.array([(kp[0], kp[1]) for kp in kp2])
-        scores1_np = np.array([kp[2] for kp in kp1])
-        scores2_np = np.array([kp[2] for kp in kp2])
+        scores1_np = np.array([kp[2] for kp in kp1]).astype(np.float64)
+        scores2_np = np.array([kp[2] for kp in kp2]).astype(np.float64)
 
         if len(kp1) < 1 or len(kp2) < 1:
             return{
@@ -78,7 +79,7 @@ class SparseDataset(Dataset):
                 dmatch = cv2.DMatch(matches[idx], min2[matches[idx]], 0.0)
                 print("Match {matches[idx]} {min2[matches[idx]]} dist={dists[matches[idx], min2[matches[idx]]]}")
                 matches_dmatch.append(dmatch)
-            out = cv2.drawMatches(image, kp1, warped, kp2, matches_dmatch, None)
+            out = cv2.drawMatches(image1, kp1, image2, kp2, matches_dmatch, None)
             cv2.imshow('a', out)
             cv2.waitKey(0)
 
@@ -89,21 +90,22 @@ class SparseDataset(Dataset):
 
         kp1_np = kp1_np.reshape((1, -1, 2))
         kp2_np = kp2_np.reshape((1, -1, 2))
-        descs1 = np.transpose(descs1 / 256.)
-        descs2 = np.transpose(descs2 / 256.)
+        desc1 = np.transpose(desc1)
+        desc2 = np.transpose(desc2)
 
-        image = torch.from_numpy(image/255.).double()[None].cuda()
-        warped = torch.from_numpy(warped/255.).double()[None].cuda()
+        image1 = torch.from_numpy(image1)[None].cuda()
+        image2 = torch.from_numpy(image2)[None].cuda()
+
 
         return{
             'keypoints0': list(kp1_np),
             'keypoints1': list(kp2_np),
-            'descriptors0': list(descs1),
-            'descriptors1': list(descs2),
+            'descriptors0': list(desc1),
+            'descriptors1': list(desc2),
             'scores0': list(scores1_np),
             'scores1': list(scores2_np),
-            'image0': image,
-            'image1': warped,
+            'image0': image1,
+            'image1': image2,
             'all_matches': list(all_matches),
             'file_name': file_name
         }

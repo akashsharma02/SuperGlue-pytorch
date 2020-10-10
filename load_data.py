@@ -33,7 +33,6 @@ class SparseDataset(Dataset):
         image = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
         sift = self.sift
         width, height = image.shape[:2]
-        # max_size = max(width, height)
         corners = np.array([[0, 0], [0, height], [width, 0], [width, height]], dtype=np.float32)
         warp = np.random.randint(-224, 224, size=(4, 2)).astype(np.float32)
 

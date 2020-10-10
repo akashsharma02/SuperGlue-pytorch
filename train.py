@@ -210,7 +210,7 @@ if __name__ == '__main__':
                 ### eval ###
                 # Visualize the matches.
                 superglue.eval()
-                image0, image1 = pred['image0'].cpu().numpy()[0]*255., pred['image1'].cpu().numpy()[0]*255.
+                image0, image1 = pred['image0'].cpu().numpy()[0], pred['image1'].cpu().numpy()[0]
                 kpts0, kpts1 = pred['keypoints0'].cpu().numpy()[0], pred['keypoints1'].cpu().numpy()[0]
                 matches, conf = pred['matches0'].cpu().detach().numpy(), pred['matching_scores0'].cpu().detach().numpy()
                 image0 = read_image_modified(image0, opt.resize, opt.resize_float)
@@ -224,15 +224,13 @@ if __name__ == '__main__':
                 stem = pred['file_name']
                 text = []
 
+
                 make_matching_plot(
                     image0, image1, kpts0, kpts1, mkpts0, mkpts1, color,
                     text, viz_path, stem, stem, opt.show_keypoints,
                     opt.fast_viz, opt.opencv_display, 'Matches')
 
                 # Estimate the pose and compute the pose error.
-
-
-
 
             if (i+1) % 5e3 == 0:
                 model_out_path = "model_epoch_{}.pth".format(epoch)

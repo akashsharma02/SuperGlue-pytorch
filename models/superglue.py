@@ -80,7 +80,8 @@ class KeypointEncoder(nn.Module):
 
     def forward(self, kpts, scores):
         inputs = [kpts.transpose(1, 2), scores.unsqueeze(1)]
-        return self.encoder(torch.cat(inputs, dim=1))
+        feature = self.encoder(torch.cat(inputs, dim=1))
+        return feature
 
 
 def attention(query, key, value):
@@ -196,9 +197,9 @@ class SuperGlue(nn.Module):
 
     """
     default_config = {
-        'descriptor_dim': 128,
-        'weights': 'indoor',
-        'keypoint_encoder': [32, 64, 128],
+        'descriptor_dim': 256,
+        'weights': 'outdoor',
+        'keypoint_encoder': [64, 128, 256],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
         'match_threshold': 0.2,
@@ -232,12 +233,13 @@ class SuperGlue(nn.Module):
         """Run SuperGlue on a pair of keypoints and descriptors"""
         desc0, desc1 = data['descriptors0'].double(), data['descriptors1'].double()
         kpts0, kpts1 = data['keypoints0'].double(), data['keypoints1'].double()
+        scores0, scores1 = data['scores0'].double(), data['scores1'].double()
 
         desc0 = desc0.transpose(0,1)
         desc1 = desc1.transpose(0,1)
         kpts0 = torch.reshape(kpts0, (1, -1, 2))
         kpts1 = torch.reshape(kpts1, (1, -1, 2))
-    
+
         if kpts0.shape[1] == 0 or kpts1.shape[1] == 0:  # no keypoints
             shape0, shape1 = kpts0.shape[:-1], kpts1.shape[:-1]
             return {
@@ -250,14 +252,14 @@ class SuperGlue(nn.Module):
 
         file_name = data['file_name']
         all_matches = data['all_matches'].permute(1,2,0) # shape=torch.Size([1, 87, 2])
-        
+
         # Keypoint normalization.
         kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
         kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
 
         # Keypoint MLP encoder.
-        desc0 = desc0 + self.kenc(kpts0, torch.transpose(data['scores0'], 0, 1))
-        desc1 = desc1 + self.kenc(kpts1, torch.transpose(data['scores1'], 0, 1))
+        desc0 = desc0 + self.kenc(kpts0, torch.transpose(scores0, 0, 1))
+        desc1 = desc1 + self.kenc(kpts1, torch.transpose(scores1, 0, 1))
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
