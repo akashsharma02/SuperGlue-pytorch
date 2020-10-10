@@ -7,7 +7,7 @@ import matplotlib.cm as cm
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from load_data import SparseDataset
+from load_aidtr_data import SparseDataset
 import os
 import torch.multiprocessing
 from tqdm import tqdm
@@ -48,7 +48,7 @@ parser.add_argument(
             ' (requires ground truth pose and intrinsics)')
 
 parser.add_argument(
-    '--superglue', choices={'indoor', 'outdoor'}, default='indoor',
+    '--superglue', choices={'indoor', 'outdoor'}, default='outdoor',
     help='SuperGlue weights')
 parser.add_argument(
     '--max_keypoints', type=int, default=1024,
@@ -114,12 +114,12 @@ parser.add_argument(
     '--learning_rate', type=int, default=0.0001,
     help='Learning rate')
 
-    
+
 parser.add_argument(
     '--batch_size', type=int, default=1,
     help='batch_size')
 parser.add_argument(
-    '--train_path', type=str, default='/dev/shm/MSCOCO2014_yingxin/', # MSCOCO2014_yingxin
+    '--train_path', type=str, default='/projects/katefgroup/datasets/aidtr/processed/superglue_ab',
     help='Path to the directory of training imgs.')
 # parser.add_argument(
 #     '--nfeatures', type=int, default=1024,
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     for epoch in range(1, opt.epoch+1):
         epoch_loss = 0
         superglue.double().train()
-        # train_loader = tqdm(train_loader)
+        train_loader = tqdm(train_loader)
         for i, pred in enumerate(train_loader):
             for k in pred:
                 if k != 'file_name' and k!='image0' and k!='image1':
@@ -183,7 +183,7 @@ if __name__ == '__main__':
                         pred[k] = Variable(pred[k].cuda())
                     else:
                         pred[k] = Variable(torch.stack(pred[k]).cuda())
-                
+
             data = superglue(pred)
 
             for k, v in pred.items():
@@ -203,8 +203,8 @@ if __name__ == '__main__':
 
 
             if (i+1) % 100 == 0:
-                print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
-                    .format(epoch, opt.epoch, i+1, len(train_loader), torch.mean(torch.stack(mean_loss)).item()))   # Loss.item()    
+                print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+                    .format(epoch, opt.epoch, i+1, len(train_loader), torch.mean(torch.stack(mean_loss)).item()))   # Loss.item()
                 mean_loss = []
 
                 ### eval ###
@@ -229,18 +229,16 @@ if __name__ == '__main__':
                     text, viz_path, stem, stem, opt.show_keypoints,
                     opt.fast_viz, opt.opencv_display, 'Matches')
 
-
-
                 # Estimate the pose and compute the pose error.
-                
+
 
 
 
             if (i+1) % 5e3 == 0:
                 model_out_path = "model_epoch_{}.pth".format(epoch)
                 torch.save(superglue, model_out_path)
-                print ('Epoch [{}/{}], Step [{}/{}], Checkpoint saved to {}' 
-                    .format(epoch, opt.epoch, i+1, len(train_loader), model_out_path)) 
+                print ('Epoch [{}/{}], Step [{}/{}], Checkpoint saved to {}'
+                    .format(epoch, opt.epoch, i+1, len(train_loader), model_out_path))
 
 
         epoch_loss /= len(train_loader)
@@ -248,5 +246,5 @@ if __name__ == '__main__':
         torch.save(superglue, model_out_path)
         print("Epoch [{}/{}] done. Epoch Loss {}. Checkpoint saved to {}"
             .format(epoch, opt.epoch, epoch_loss, model_out_path))
-        
+
 
